@@ -364,6 +364,22 @@ contract('XHT', (accounts) => {
                 assert.isOk(true)
             }
         })
+        it ('can not be a negative number', async() => {
+            try {
+                await xht.setPenalty(-1)
+                assert.isOk(false);
+            } catch(err) {
+                assert.isOk(true);
+            }            
+        })
+        it ('can not be more than hundred percent', async() => {
+            try {
+                await xht.setPenalty(101)
+                assert.isOk(false);
+            } catch(err) {
+                assert.isOk(true);
+            }            
+        })
         it ('admin can change the default value', async() => {
             await xht.setPenalty(20)
             const penalty = await xht.penalty()

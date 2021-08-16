@@ -35,11 +35,15 @@ contract XHT is Ownable {
     // array of staked addresses
     address[] public addressIndices;
 
-    // stake duration for 2 days, 1 month, 1 year based on ethereum block
-    uint256[] public periods = [13000, 195000, 2372500];
+    // stake duration for 1 block, 1 day, 1 month, 1 year based on ethereum block
+    uint256[] public periods = [1, 6500, 195000, 2372500];
 
     // penalty for early removal of stake in percentage. default value is 10%
     uint256 public penalty = 10;
+
+    // The block number in which the contract is deployed.
+    // This is used for stake migrations for a short period after the contract deployment.
+    uint public deployedBlock = block.number;
 
     event Reward(address _address, uint256 _reward);
     event Distribute(uint256 _amount);
@@ -48,11 +52,21 @@ contract XHT is Ownable {
         // It should be set during deployment with XHT token contract address.
         token = _token;
     }
-
+    
+    /**
+    * Returns specific stake data.
+    *
+    * @param {address} _staker The address of staker to retrieve stake data from.
+    */
     function getStake(address _staker) public view returns (Stake[] memory) {
         return (stakes[_staker]);
     }
 
+    /**
+    * Returns weight of specific period. Determines the importance of the period in distribution calculation.
+    *
+    * @param {uint256} _period The specific period to get the weight for.
+    */
     function getStakeWeight(uint256 _period) public view returns (uint256) {
         uint256 weight = 0;
         for (uint i=0; i<periods.length; i++) {
@@ -64,6 +78,9 @@ contract XHT is Ownable {
         return weight;
     }
 
+    /**
+    * Returns total reward of all the active stakes.
+    */
     function getTotalReward() public view returns (uint256) {
         uint256 reward = 0;
         
@@ -76,6 +93,12 @@ contract XHT is Ownable {
         return reward;
     }
 
+    /**
+    * Returns stake data.
+    *
+    * @param {uint256} _amount The amount of XHT to be staked.
+    * @param {uint256} _period The duration for stake.
+    */
     function addStake(uint256 _amount, uint256 _period) public returns (uint256, uint256, uint256, uint256) {
         require(_amount > 0 , "The amount should be more than zero");
         require(_amount >= 10**18 , "The amount should be larger than 1 XHT");
@@ -106,6 +129,11 @@ contract XHT is Ownable {
         return (s.amount, s.period, s.startBlock, s.reward);
     }
 
+    /**
+    * Returns the stake data.
+    *
+    * @param {uint256} _index Array index of the stake to be removed.
+    */
     function removeStake(uint256 _index) public returns (uint256, uint256, uint256, uint256, uint256) {
 
         require(stakes[msg.sender].length > 0, "There should be at least one existing stake to remove from.");
@@ -116,7 +144,7 @@ contract XHT is Ownable {
         uint256 receivedAmount = s.amount;
         uint256 penaltyAmount = 0;
         if (s.startBlock.add(s.period) > block.number) {
-            // add 10% penalty for early removal and no allocation of rewards
+            // Add 10% penalty for early removal and no allocation of rewards
             penaltyAmount = receivedAmount.mul(penalty).div(100);
             receivedAmount = receivedAmount.sub(penaltyAmount);
         } else {
@@ -141,6 +169,9 @@ contract XHT is Ownable {
         return (0, s.period, s.startBlock, 0, block.number);
     }
 
+    /**
+    * Returns true. Distribute the pot balance among stakers.
+    */
     function distribute() public returns (bool) {
         uint256 potBalance = token.balanceOf(pot);
         require(potBalance >= 10**22, "There should be at least 10000 XHT in the pot for distribution.");
@@ -162,25 +193,55 @@ contract XHT is Ownable {
         return true;
     }
 
+    /**
+    * Returns the new pot address. Can only be executed by the admin.
+    *
+    * @param {uint256} _address The new pot address.
+    */
     function setPotAddress(address _address) public onlyOwner returns (address) {
         pot = _address;
         return pot;
     }
 
+    /**
+    * Returns the new pot address. It can only be executed by the admin.
+    *
+    * @param {uint256} _penalty The new penalty in percentage.
+    */
     function setPenalty(uint256 _penalty) public onlyOwner returns (uint256) {
+        require(_penalty <= 100, "penalty can not be more than hundred percent");
+        require(_penalty >= 0, "penalty can not be a negative number");
         penalty = _penalty;
         return penalty;
     }
 
+    /**
+    * Returns the new periods. Can only be executed by the admin.
+    *
+    * @param {uint256} _periods An array of the new periods.
+    */
     function setPeriods(uint256[] memory _periods) public onlyOwner returns (uint256[] memory) {
         periods = _periods;
         return periods;
     }
 
-    function setStake(uint256 _amount, uint256 _period, address _address) public onlyOwner returns (uint256, uint256, uint256, uint256) {
-        require(_amount > 0 , "The amount should be more than zero");
-        require(_amount >= 10**18 , "The amount should be larger than 1 XHT");
-        require(_period > 0 , "Block period should be more than zero");
+    /**
+    * Manually sets a stake for an address. This us used for initial stake migration and can only be used by admin within within 195000 blocks (~30 days) from contract creation.
+    * Returns stake data.
+    *
+    * @param {uint256} _amount The amount of XHT to be staked.
+    * @param {uint256} _period The duration for stake.
+    * @return {address} _address Address for the staker. When remove the stake the stake amount goes to this address.
+    * @return {address} _startBlock The block this stake started. Used for migrating existing stakes initially.
+    * @return {address} _reward The reward this stake has collected. Used for migrating existing stakes initially.
+    */
+
+    function setStake(uint256 _amount, uint256 _period, address _address, uint256 _startBlock, uint256 _reward) public onlyOwner returns (uint256, uint256, uint256, uint256) {
+        require(_amount > 0 , "The amount should be more than zero.");
+        require(_amount >= 10**18 , "The amount should be larger than 1 XHT.");
+        require(_period > 0 , "Block period should be more than zero.");
+        require(block.number < deployedBlock + 195000 , "Function expired. This function can only be used within 195000 blocks (~30 days) from contract creation.");
+
         bool check = false;
         for (uint i=0; i<periods.length; i++) {
             if (periods[i] == _period) {
@@ -196,7 +257,7 @@ contract XHT is Ownable {
             addressIndices.push(_address);
         }
 
-        Stake memory s = Stake(_amount, _period, block.number, 0, 0);
+        Stake memory s = Stake(_amount, _period, _startBlock, _reward, 0);
         stakes[_address].push(s);
     
         totalStake = totalStake.add(_amount);
