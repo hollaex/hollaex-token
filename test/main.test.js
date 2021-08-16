@@ -378,4 +378,59 @@ contract('XHT', (accounts) => {
             assert.approximately(Number(toEther(newBalance)) - Number(toEther(balance)), total, 10)
         })
     })
+    describe('Set manual stake', async () => {
+        it ('should only be allowed by the admin', async() => {
+            try {
+                await xht.setStake(tokens(100), 1, accounts[5], 1, 10, { from: accounts[1] })
+                assert.isOk(false)
+            } catch (err) {
+                assert.isOk(true)
+            }
+        })
+        it ('should set the right stake', async() => {
+            await xht.setStake(tokens(100), 1, accounts[5], 1, tokens(10), { from: accounts[0] })
+            const stake = await xht.getStake(accounts[5])
+            assert.isArray(stake);
+            assert.lengthOf(stake, 1, 'stake has a length of 1');
+            assert.equal(stake[0].amount, tokens(100))
+            assert.equal(stake[0].period, 1);
+            assert.equal(stake[0].reward, tokens(10));
+            assert.equal(stake[0].startBlock, 1);
+        })
+        it('can not be removed by the admin', async() => {
+            try {
+                await xht.removeStake(0, { from: accounts[0] })
+                assert.isOk(false)
+            } catch (err) {
+                assert.isOk(true)
+            }
+        });
+        it('should be removable by the address owner', async() => {
+            try {
+                await xht.removeStake(0, { from: accounts[5] })
+                assert.isOk(true)
+            } catch (err) {
+                assert.isOk(false)
+            }
+        });
+        if('has the empty stake', async() => {
+            const stake = xht.getStake(accounts[5])
+            assert.isArray(stake);
+            assert.lengthOf(stake, 1, 'stake has a length of 1');
+            assert.equal(stake[0].amount, 0)
+            assert.equal(stake[0].period, 1);
+            assert.equal(stake[0].reward, 0);
+            assert.equal(stake[0].startBlock, 1);
+        })
+        it('has the right balance', async() => {
+            const balance = await token.balanceOf(accounts[5]);
+            assert.equal(balance, tokens(110))
+        })
+        it ('contract balance is equal to its holdings', async() => {
+            const contractAddress = await token.balanceOf(xht.address);
+            const totalStake = await xht.totalStake();
+            const totalReward = await xht.getTotalReward();
+            assert.approximately(Number(toEther(contractAddress)), Number(toEther(new BN(totalStake).add(totalReward))), 10);
+        })
+    })
 })
