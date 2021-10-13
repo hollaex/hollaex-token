@@ -45,8 +45,10 @@ contract XHT is Ownable {
     // This is used for stake migrations for a short period after the contract deployment.
     uint public deployedBlock = block.number;
 
-    event Reward(address _address, uint256 _reward);
-    event Distribute(uint256 _amount);
+    event RewardEvent(address _address, uint256 _reward);
+    event DistributeEvent(uint256 _amount);
+    event StakeEvent(address _address, uint256 _amount);
+    event UnstakeEvent(address _address, uint256 _amount);
 
     constructor(Token _token) {
         // It should be set during deployment with XHT token contract address.
@@ -126,6 +128,7 @@ contract XHT is Ownable {
         totalStake = totalStake.add(_amount);
         totalStakeWeight = totalStakeWeight.add(getStakeWeight(_period).mul(_amount));
 
+        emit StakeEvent(msg.sender, _amount);
         return (s.amount, s.period, s.startBlock, s.reward);
     }
 
@@ -165,7 +168,8 @@ contract XHT is Ownable {
 
         totalStake = totalStake.sub(s.amount);
         totalStakeWeight = totalStakeWeight.sub(getStakeWeight(s.period).mul(s.amount));
-
+        
+        emit UnstakeEvent(msg.sender, receivedAmount);
         return (0, s.period, s.startBlock, 0, block.number);
     }
 
@@ -185,11 +189,11 @@ contract XHT is Ownable {
                     uint256 weightedAmount = getStakeWeight(s.period).mul(s.amount);                     
                     uint256 reward = weightedAmount.mul(potBalance).div(totalStakeWeight);
                     stakes[addressIndices[i]][j].reward = s.reward.add(reward);
-                    emit Reward(addressIndices[i], stakes[addressIndices[i]][j].reward);
+                    emit RewardEvent(addressIndices[i], stakes[addressIndices[i]][j].reward);
                 }
             }
         }
-        emit Distribute(potBalance);
+        emit DistributeEvent(potBalance);
         return true;
     }
 
