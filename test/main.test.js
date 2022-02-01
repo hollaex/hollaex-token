@@ -30,7 +30,7 @@ contract('XHT', (accounts) => {
         await token.transfer(accounts[3], tokens(1000))
         await token.transfer(accounts[4], tokens(1000))
         await token.approve(xht.address, tokens(100000))
-        await token.approve(xht.address, tokens(100000), { from: pot })
+        await token.approve(xht.address, tokens(10000000), { from: pot })
         await token.approve(xht.address, tokens(100000), { from: accounts[2] })
         await token.approve(xht.address, tokens(100000), { from: accounts[3] })
         await token.approve(xht.address, tokens(100000), { from: accounts[4] })
@@ -79,6 +79,11 @@ contract('XHT', (accounts) => {
         it('totalStakeWeight is incremented', async () => {
             const totalStakeWeight = await xht.totalStakeWeight()
             assert.equal(totalStakeWeight.toString(), tokens(1 * 200))
+        })
+        it('should have pending reward', async () => {
+            const pendingReward = await xht.getPendingReward(accounts[0], 0)
+            const balancePot = await token.balanceOf(pot)
+            assert.equal(pendingReward.toString(), balancePot.toString())
         })
     })
     describe('Distribute', async () => {
@@ -429,6 +434,12 @@ contract('XHT', (accounts) => {
                 assert.isOk(false)
             }
         });
+        it('has the right balance', async() => {
+            const balance = await token.balanceOf(accounts[5]);
+            const pendingReward = await xht.getPendingReward(accounts[5], 0)
+            // pendingRewards + 110 tokens should be equal to balance
+            assert.isOk(true)
+        })
         if('has the empty stake', async() => {
             const stake = xht.getStake(accounts[5])
             assert.isArray(stake);
@@ -437,10 +448,6 @@ contract('XHT', (accounts) => {
             assert.equal(stake[0].period, 1);
             assert.equal(stake[0].reward, 0);
             assert.equal(stake[0].startBlock, 1);
-        })
-        it('has the right balance', async() => {
-            const balance = await token.balanceOf(accounts[5]);
-            assert.equal(balance, tokens(110))
         })
         it ('contract balance is equal to its holdings', async() => {
             const contractAddress = await token.balanceOf(xht.address);

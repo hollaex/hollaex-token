@@ -3,6 +3,7 @@
 const Web3 = require('web3');
 const { abi } = require('./abis/XHT.json');
 const Token = require('./abis/Token.json');
+require('dotenv').config({ path: '../.env' })
 
 const PRIVATE_KEY1 = process.env.PRIVATE_KEY1; // contract creator (test)
 const PRIVATE_KEY2 = process.env.PRIVATE_KEY2; //testnet
@@ -10,7 +11,9 @@ const INFURA_KEY = process.env.INFURA_KEY
 
 const web3 = new Web3(new Web3.providers.HttpProvider(`https://ropsten.infura.io/v3/${INFURA_KEY}`))
 
-const contract = new web3.eth.Contract(abi, '0xa324C864A04c88ABAB2dE0d291B96D3cD9a17153');
+const contractAddress = '0x2AC19C641e6453B2FAE4bF6bc52f14a5C82eeA0f'
+
+const contract = new web3.eth.Contract(abi, contractAddress);
 
 const tokenContract = new web3.eth.Contract(Token.abi, '0xf0D641A2f02cA52ec56d0791BC79f68da2C772A9');
 
@@ -126,7 +129,7 @@ const distribute = async () => {
         .send({
             from: account,
             gasPrice: web3.utils.toHex(gasPrice),
-            gas: web3.utils.toHex(300000),
+            gas: web3.utils.toHex(3000000),
         });
 
     } catch (err) {
@@ -138,7 +141,7 @@ const approve = async () => {
     web3.eth.accounts.wallet.add(PRIVATE_KEY1)
     const account = web3.eth.accounts.wallet[0].address
     const gasPrice = await web3.eth.getGasPrice()
-    tokenContract.methods.approve('0xa324C864A04c88ABAB2dE0d291B96D3cD9a17153', web3.utils.toWei('1000000'))
+    tokenContract.methods.approve(contractAddress, web3.utils.toWei('1000000'))
         .send({
             from: account,
             gasPrice: web3.utils.toHex(gasPrice),

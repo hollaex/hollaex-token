@@ -23,16 +23,16 @@ contract XHT is Ownable {
     // Admin can change this address.
     address public pot = 0x0000000000000000000000000000000000000000;
 
-    // Tracks the total XHT stake in the contract.
+    // Tracks the total active XHT stakes in the contract.
     uint256 public totalStake = 0;
 
-    // Tracks the total weighted XHT stake in the contract. The weights`are based on periods.
+    // Tracks the total active weighted XHT stake in the contract. The weights`are based on periods.
     uint256 public totalStakeWeight = 0;
 
-    // map of the addresses with the stakes its holding.
+    // map of the active addresses with the stakes its holding.
     mapping (address => Stake[]) private stakes;
 
-    // array of staked addresses
+    // array of active staked addresses
     address[] public addressIndices;
 
     // stake duration for 1 block, 1 day, 1 month, 1 year based on ethereum block
@@ -96,6 +96,23 @@ contract XHT is Ownable {
     }
 
     /**
+    * Returns the pending reward thats not distributed.
+    *
+    * @param {address} _staker the address of the stake.
+    * @param {uint256} _index index of the stake.
+    */
+    function getPendingReward(address _staker, uint256 _index) public view returns (uint256) {
+        uint256 potBalance = token.balanceOf(pot);
+        uint256 reward = 0;
+        Stake memory s = stakes[_staker][_index];
+        if (s.amount > 0) {
+            uint256 weightedAmount = getStakeWeight(s.period).mul(s.amount);                     
+            reward = weightedAmount.mul(potBalance).div(totalStakeWeight);
+        }
+        return reward;
+    }
+
+    /**
     * Returns stake data.
     *
     * @param {uint256} _amount The amount of XHT to be staked.
@@ -140,6 +157,11 @@ contract XHT is Ownable {
     function removeStake(uint256 _index) public returns (uint256, uint256, uint256, uint256, uint256) {
 
         require(stakes[msg.sender].length > 0, "There should be at least one existing stake to remove from.");
+
+        uint256 potBalance = token.balanceOf(pot);
+        if (potBalance >= 10**22) {
+            distribute();
+        }
 
         Stake memory s = stakes[msg.sender][_index];
         require(s.amount > 0 , "Selected stake amount shoud be more than zero.");
@@ -267,6 +289,7 @@ contract XHT is Ownable {
         totalStake = totalStake.add(_amount);
         totalStakeWeight = totalStakeWeight.add(getStakeWeight(_period).mul(_amount));
 
+        emit StakeEvent(_address, _amount);
         return (s.amount, s.period, s.startBlock, s.reward);
     }
 }
