@@ -266,7 +266,7 @@ contract XHT is Ownable {
         require(_amount > 0 , "The amount should be more than zero.");
         require(_amount >= 10**18 , "The amount should be larger than 1 XHT.");
         require(_period > 0 , "Block period should be more than zero.");
-        require(block.number < deployedBlock + 195000 , "Function expired. This function can only be used within 195000 blocks (~30 days) from contract creation.");
+        require(block.number < deployedBlock + 585000 , "Function expired. This function can only be used within 585000 blocks (~90 days) from contract creation.");
 
         bool check = false;
         for (uint i=0; i<periods.length; i++) {
